@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web MPSAMP</title>
+    <style>
+        /* Pengaturan Dasar */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; /* Mencegah scrollbar double luar */
+        }
+
+        /* --- EFEK BULAN SABIT MERAH MENYALA (CUMA DI HOME) --- */
+        #particles-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .particle {
+            position: absolute;
+            color: #ff0000;
+            font-size: 28px;
+            text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #b30000;
+            animation: float 6s infinite alternate ease-in-out;
+            user-select: none;
+        }
+        @keyframes float {
+            0% { transform: translateY(0) scale(0.8); opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-40px) scale(1.1); opacity: 0.1; }
+        }
+
+        /* --- TOMBOL HAMBURGER (KIRI ATAS) --- */
+        .menu-btn {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            font-size: 30px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 100;
+            user-select: none;
+            transition: 0.3s;
+        }
+        .menu-btn:hover {
+            color: red;
+            text-shadow: 0 0 10px red;
+        }
+
+        /* --- TOMBOL LOGIN / SUDAH LOGIN (KANAN ATAS) --- */
+        .login-btn {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            background: transparent;
+            border: 2px solid red;
+            color: #fff;
+            padding: 8px 25px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            transition: 0.3s;
+        }
+        .login-btn:hover {
+            background: red;
+            box-shadow: 0 0 20px red;
+        }
+
+        /* --- TOMBOL KONTROL MUSIK (IKUT NAIK BIAR GAK NIMPA CHAT INPUT) --- */
+        .music-control {
+            position: fixed;
+            bottom: 135px; /* Dinaikkan agar pas berada di atas bar chat baru */
+            right: 35px; 
+            background: #111;
+            border: 2px solid red;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 105; 
+            box-shadow: 0 0 15px red;
+            font-size: 18px;
+            transition: 0.3s;
+            user-select: none;
+        }
+        .music-control:hover {
+            transform: scale(1.1);
+        }
+
+        /* --- POPUP MODAL LOGIN --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-card {
+            background: #111;
+            border: 2px solid red;
+            border-radius: 20px;
+            width: 320px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 0 25px red;
+            position: relative;
+            color: red;
+        }
+        .login-logo {
+            font-size: 50px;
+            color: red;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 0 8px red);
+        }
+        .modal-card input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #1a1a1a;
+            border: 1px solid red;
+            border-radius: 10px;
+            color: #fff;
+            outline: none;
+        }
+        .modal-card input:focus {
+            box-shadow: 0 0 10px red;
+        }
+        .modal-card button {
+            background: red;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: 0.3s;
+        }
+        .modal-card button:hover {
+            background: #b30000;
+            box-shadow: 0 0 15px red;
+        }
+
+        /* --- SIDEBAR DISCORD STYLE --- */
+        .sidebar {
+            position: fixed;
+            top: 0; left: -100px; width: 80px; height: 100vh;
+            background-color: #1e1f22;
+            transition: 0.4s ease;
+            z-index: 90;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 70px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+        }
+        .sidebar.active {
+            left: 0;
+        }
+        .nav-item {
+            width: 50px; height: 50px;
+            background-color: #313338;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: 0.3s;
+            font-weight: bold; font-size: 16px;
+            position: relative; user-select: none;
+            color: #fff;
+        }
+        
+        /* WARNA SLIDE AKTIF MERAH NEON */
+        .nav-item:hover, .nav-item.active-menu {
+            border-radius: 30%;
+            background-color: red !important;
+            box-shadow: 0 0 15px red;
+        }
+        .huruf-j-merah {
+            color: red;
+            font-size: 22px;
+            text-shadow: 0 0 10px red, 0 0 20px red;
+        }
+
+        /* --- KONTEN SLIDE --- */
+        .content-section {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .content-section.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- CHAT BOX RENTANG PENUH --- */
+        .chat-container {
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 5, 0.95);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 2;
+        }
+        .chat-header {
+            background: #111;
+            color: red;
+            padding: 18px 20px 18px 70px; 
+            font-weight: bold;
+            border-bottom: 2px solid red;
+            text-align: left;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.2);
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            text-align: left;
+        }
+        .msg {
+            background: #141414;
+            padding: 12px 18px;
+            border-radius: 12px;
+            max-width: 65%;
+            font-size: 14.5px;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            line-height: 1.5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            word-wrap: break-word;
+        }
+        
+        /* --- FIX: INPUT CHAT DIATASIN LAGI (MARGIN BAWAH 55px) --- */
+        .chat-input-area {
+            display: flex;
+            border: 2px solid red;
+            border-radius: 25px; 
+            background: #000;
+            margin: 10px 20px 55px 20px; /* Diubah ke 55px agar posisi naik lebih ideal */
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        }
+        .chat-input-area input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 15px 20px;
+            color: #fff;
+            outline: none;
+            font-size: 15px;
+        }
+        .chat-input-area button {
+            background: red;
+            color: white;
+            border: none;
+            padding: 0 35px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: 0.2s;
+        }
+        .chat-input-area button:hover {
+            background: #b30000;
+        }
+
+        /* Slide J (Pure Hitam Kosong) */
+        #slide-j {
+            background-color: #000;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Audio Player -->
+    <audio id="myAudio" loop>
+        <source src="http://sampplay.my.id/play/TAMU_MALAM_MINGGU_Tasya_R_1781246493.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Animasi Bintang/Bulan Belakang -->
+    <div id="particles-container"></div>
+
+    <!-- Tombol Garis 3 -->
+    <div class="menu-btn" onclick="toggleSidebar()">&#9776;</div>
+
+    <!-- Tombol Kontrol Musik (Tetap Di Atas Bar Chat Baru) -->
+    <div class="music-control" id="musicBtn" onclick="toggleMusic()">🎵</div>
+
+    <!-- Tombol Login Kanan Atas -->
+    <button class="login-btn" id="loginButton" onclick="toggleModal(true)">Login</button>
+
+    <!-- POPUP LOGIN -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-card">
+            <div class="login-logo">👤</div>
+            <h3>USER LOGIN</h3>
+            <input type="text" placeholder="Username" id="userIn" required>
+            <input type="password" placeholder="Password" id="passIn" required>
+            <br>
+            <button onclick="loginSuccess()">Lanjut</button>
+        </div>
+    </div>
+
+    <!-- Sidebar Discord Style -->
+    <div class="sidebar" id="mySidebar">
+        <div class="nav-item active-menu" data-tooltip="Home" onclick="openSlide('home')">H</div>
+        <div class="nav-item huruf-j-merah" data-tooltip="Slide J" onclick="openSlide('slide-j')">J</div>
+    </div>
+
+    <!-- SLIDE 1: HOME SCREEN CHAT FULL SCREEN WA STYLE -->
+    <div id="home" class="content-section active">
+        <div class="chat-container">
+            <div class="chat-header">💬 Message Group Real-Time</div>
+            <div class="chat-messages" id="chatBox">
+                <!-- Chat dimuat di sini secara otomatis -->
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ketik pesan di sini..." onkeypress="handleChatEnter(event)">
+                <button onclick="sendChat()">Kirim</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 2: PURE HITAM KOSONG -->
+    <div id="slide-j" class="content-section">
+        <!-- Kosong total bro -->
+    </div>
+
+    <script>
+        const audio = document.getElementById("myAudio");
+        const musicBtn = document.getElementById("musicBtn");
+        
+        let globalUsername = "Guest"; 
+
+        // 1. Fungsi Sidebar
+        function toggleSidebar() {
+            document.getElementById("mySidebar").classList.toggle("active");
+        }
+
+        // 2. Fungsi Popup Login
+        function toggleModal(show) {
+            document.getElementById("loginModal").style.display = show ? "flex" : "none";
+        }
+
+        // KETIKA BERHASIL LOGIN
+        function loginSuccess() {
+            const u = document.getElementById("userIn").value.trim();
+            const p = document.getElementById("passIn").value.trim();
+            
+            if (u === "" || p === "") {
+                alert("Username dan Password WAJIB diisi, gak boleh kosong bro!");
+                return;
+            }
+
+            const savedUser = localStorage.getItem("reg_username");
+            const savedPass = localStorage.getItem("reg_password");
+
+            if (!savedUser) {
+                localStorage.setItem("reg_username", u);
+                localStorage.setItem("reg_password", p);
+                globalUsername = u;
+                alert("Akun sukses dibuat! Selamat datang pertama kali.");
+            } else {
+                if (u === savedUser && p === savedPass) {
+                    globalUsername = u;
+                    alert("Login Berhasil! Selamat datang kembali.");
+                } else {
+                    alert("Gagal Login! Username atau Password salah, harus sama seperti login awal!");
+                    return; 
+                }
+            }
+
+            toggleModal(false); 
+            document.getElementById("loginButton").innerText = "(sudah login)"; 
+            
+            playMusic();
+            loadMessages();
+        }
+
+        // 3. Fungsi Ganti Slide
+        function openSlide(slideId) {
+            let sections = document.getElementsByClassName("content-section");
+            for (let i = 0; i < sections.length; i++) {
+                sections[i].classList.remove("active");
+            }
+            document.getElementById(slideId).classList.add("active");
+
+            const particles = document.getElementById('particles-container');
+            if (slideId === 'home') {
+                particles.style.display = 'block';
+            } else {
+                particles.style.display = 'none';
+            }
+
+            let navItems = document.getElementsByClassName("nav-item");
+            for (let i = 0; i < navItems.length; i++) {
+                navItems[i].classList.remove("active-menu");
+            }
+            event.currentTarget.classList.add("active-menu");
+        }
+
+        // 4. Efek Bulan Sabit Merah
+        function createParticles() {
+            const container = document.getElementById('particles-container');
+            container.innerHTML = ""; 
+            const particleCount = 20;
+
+            for (let i = 0; i < particleCount; i++) {
+                let particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.innerHTML = '☽'; 
+                
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.top = Math.random() * 100 + 'vh';
+                particle.style.fontSize = (Math.random() * 15 + 15) + 'px';
+                particle.style.animationDuration = (Math.random() * 4 + 4) + 's';
+                particle.style.animationDelay = Math.random() * 5 + 's';
+
+                container.appendChild(particle);
+            }
+        }
+
+        // 5. Fungsi Kontrol Musik
+        function playMusic() {
+            audio.play().catch(e => console.log("Menunggu aksi user"));
+            musicBtn.innerHTML = "🎵";
+            musicBtn.style.boxShadow = "0 0 15px red";
+        }
+
+        function toggleMusic() {
+            if (audio.paused) {
+                audio.play();
+                musicBtn.innerHTML = "🎵";
+                musicBtn.style.boxShadow = "0 0 15px red";
+            } else {
+                audio.pause();
+                musicBtn.innerHTML = "🔇";
+                musicBtn.style.boxShadow = "0 0 5px #555";
+            }
+        }
+
+        window.addEventListener('click', () => {
+            if(audio.paused && musicBtn.innerHTML === "🎵") {
+                playMusic();
+            }
+        }, { once: true });
+
+        // 6. FITUR CHAT BERSAMA REAL-TIME
+        function loadMessages() {
+            const chatBox = document.getElementById("chatBox");
+            chatBox.innerHTML = '<div class="msg" style="color:red; border-color:red;">[System]: Selamat datang di Global Chat Room MPSAMP! Semua pesan tersinkronisasi antar tab.</div>';
+            
+            const msgs = JSON.parse(localStorage.getItem("global_chat_data") || "[]");
+            msgs.forEach(m => {
+                let newMsg = document.createElement("div");
+                newMsg.className = "msg";
+                newMsg.innerHTML = `<strong style="color:red;">${m.user}</strong>: ${m.text}`;
+                chatBox.appendChild(newMsg);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight; 
+        }
+
+        function sendChat() {
+            if (globalUsername === "Guest") {
+                alert("Lu harus login dulu bro sebelum bisa ngirim pesan chat!");
+                return;
+            }
+            
+            const input = document.getElementById("chatInput");
+            if (input.value.trim() !== "") {
+                const msgs = JSON.parse(localStorage.getItem("global_chat_data") || "[]");
+                const newMsgObj = { user: globalUsername, text: input.value };
+                msgs.push(newMsgObj);
+                
+                localStorage.setItem("global_chat_data", JSON.stringify(msgs));
+                
+                loadMessages(); 
+                input.value = ""; 
+            }
+        }
+
+        function handleChatEnter(e) {
+            if (e.key === 'Enter') sendChat();
+        }
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'global_chat_data') {
+                loadMessages();
+            }
+        });
+
+        window.onload = function() {
+            createParticles();
+            loadMessages();
+            toggleModal(true);
+        };
+    </script>
+
+</body>
+</html>
