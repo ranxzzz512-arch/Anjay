@@ -77,10 +77,10 @@
             box-shadow: 0 0 20px red;
         }
 
-        /* --- TOMBOL KONTROL MUSIK (IKUT NAIK BIAR GAK NIMPA CHAT INPUT) --- */
+        /* --- TOMBOL KONTROL MUSIK (DI ATAS BAR CHAT & GAK NIMPA) --- */
         .music-control {
             position: fixed;
-            bottom: 135px; /* Dinaikkan agar pas berada di atas bar chat baru */
+            bottom: 135px; 
             right: 35px; 
             background: #111;
             border: 2px solid red;
@@ -101,7 +101,7 @@
             transform: scale(1.1);
         }
 
-        /* --- POPUP MODAL LOGIN --- */
+        /* --- POPUP MODAL LOGIN & LUPA PASSWORD --- */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -253,13 +253,13 @@
             word-wrap: break-word;
         }
         
-        /* --- FIX: INPUT CHAT DIATASIN LAGI (MARGIN BAWAH 55px) --- */
+        /* --- INPUT CHAT ATASAN SEDIKIT (MARGIN BAWAH 55px) --- */
         .chat-input-area {
             display: flex;
             border: 2px solid red;
             border-radius: 25px; 
             background: #000;
-            margin: 10px 20px 55px 20px; /* Diubah ke 55px agar posisi naik lebih ideal */
+            margin: 10px 20px 55px 20px; 
             overflow: hidden;
             box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
         }
@@ -295,48 +295,46 @@
 </head>
 <body>
 
-    <!-- Audio Player -->
     <audio id="myAudio" loop>
         <source src="http://sampplay.my.id/play/TAMU_MALAM_MINGGU_Tasya_R_1781246493.mp3" type="audio/mpeg">
     </audio>
 
-    <!-- Animasi Bintang/Bulan Belakang -->
     <div id="particles-container"></div>
 
-    <!-- Tombol Garis 3 -->
     <div class="menu-btn" onclick="toggleSidebar()">&#9776;</div>
 
-    <!-- Tombol Kontrol Musik (Tetap Di Atas Bar Chat Baru) -->
     <div class="music-control" id="musicBtn" onclick="toggleMusic()">🎵</div>
 
-    <!-- Tombol Login Kanan Atas -->
     <button class="login-btn" id="loginButton" onclick="toggleModal(true)">Login</button>
 
-    <!-- POPUP LOGIN -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal-card">
-            <div class="login-logo">👤</div>
-            <h3>USER LOGIN</h3>
+            <div class="login-logo" id="modalIcon">👤</div>
+            <h3 id="modalTitle">USER LOGIN</h3>
+            
             <input type="text" placeholder="Username" id="userIn" required>
             <input type="password" placeholder="Password" id="passIn" required>
+            <input type="text" placeholder="PIN Pemulihan (4 Angka)" id="pinIn" maxlength="4" required>
+            <input type="password" placeholder="Password Baru" id="newPassIn" style="display:none;" required>
+            
             <br>
-            <button onclick="loginSuccess()">Lanjut</button>
+            <button id="modalBtn" onclick="submitAuth()">Lanjut</button>
+            
+            <div style="margin-top: 20px;">
+                <a href="#" id="forgotLink" onclick="toggleForgotMode(true)" style="color: #888; font-size: 13px; text-decoration: none; font-weight: bold; transition: 0.2s;">Lupa Password?</a>
+            </div>
         </div>
     </div>
 
-    <!-- Sidebar Discord Style -->
     <div class="sidebar" id="mySidebar">
         <div class="nav-item active-menu" data-tooltip="Home" onclick="openSlide('home')">H</div>
         <div class="nav-item huruf-j-merah" data-tooltip="Slide J" onclick="openSlide('slide-j')">J</div>
     </div>
 
-    <!-- SLIDE 1: HOME SCREEN CHAT FULL SCREEN WA STYLE -->
     <div id="home" class="content-section active">
         <div class="chat-container">
             <div class="chat-header">💬 Message Group Real-Time</div>
-            <div class="chat-messages" id="chatBox">
-                <!-- Chat dimuat di sini secara otomatis -->
-            </div>
+            <div class="chat-messages" id="chatBox"></div>
             <div class="chat-input-area">
                 <input type="text" id="chatInput" placeholder="Ketik pesan di sini..." onkeypress="handleChatEnter(event)">
                 <button onclick="sendChat()">Kirim</button>
@@ -344,180 +342,202 @@
         </div>
     </div>
 
-    <!-- SLIDE 2: PURE HITAM KOSONG -->
-    <div id="slide-j" class="content-section">
-        <!-- Kosong total bro -->
-    </div>
+    <div id="slide-j" class="content-section"></div>
 
-    <script>
-        const audio = document.getElementById("myAudio");
-        const musicBtn = document.getElementById("musicBtn");
-        
-        let globalUsername = "Guest"; 
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDZ047WPwkQLp4wrSrh_MXCuzIoheBxwoc",
+            authDomain: "mprl-98aa0.firebaseapp.com",
+            projectId: "mprl-98aa0",
+            storageBucket: "mprl-98aa0.appspot.com",
+            messagingSenderId: "503738439184",
+            appId: "1:503738439184:web:b05173ce45253442599c95"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const chatRef = ref(db, "grup_chat");
+
+        // Variabel Global
+        window.globalUsername = "Guest"; 
+        window.isForgotMode = false;
 
         // 1. Fungsi Sidebar
-        function toggleSidebar() {
+        window.toggleSidebar = function() {
             document.getElementById("mySidebar").classList.toggle("active");
         }
 
-        // 2. Fungsi Popup Login
-        function toggleModal(show) {
+        // 2. Fungsi Popup Modal
+        window.toggleModal = function(show) {
             document.getElementById("loginModal").style.display = show ? "flex" : "none";
+            if(show) window.toggleForgotMode(false); 
         }
 
-        // KETIKA BERHASIL LOGIN
-        function loginSuccess() {
-            const u = document.getElementById("userIn").value.trim();
-            const p = document.getElementById("passIn").value.trim();
-            
-            if (u === "" || p === "") {
-                alert("Username dan Password WAJIB diisi, gak boleh kosong bro!");
-                return;
-            }
+        window.toggleForgotMode = function(show) {
+            window.isForgotMode = show;
+            const title = document.getElementById("modalTitle");
+            const icon = document.getElementById("modalIcon");
+            const userIn = document.getElementById("userIn");
+            const passIn = document.getElementById("passIn");
+            const pinIn = document.getElementById("pinIn");
+            const newPassIn = document.getElementById("newPassIn");
+            const btn = document.getElementById("modalBtn");
+            const forgotLink = document.getElementById("forgotLink");
 
-            const savedUser = localStorage.getItem("reg_username");
-            const savedPass = localStorage.getItem("reg_password");
-
-            if (!savedUser) {
-                localStorage.setItem("reg_username", u);
-                localStorage.setItem("reg_password", p);
-                globalUsername = u;
-                alert("Akun sukses dibuat! Selamat datang pertama kali.");
+            if (show) {
+                title.innerText = "RESET PASSWORD";
+                icon.innerText = "🔑";
+                userIn.style.display = "none";
+                passIn.style.display = "none";
+                newPassIn.style.display = "block";
+                pinIn.placeholder = "Masukkan PIN Rahasia Anda";
+                btn.innerText = "Simpan Sandi Baru";
+                forgotLink.innerText = "Kembali ke Login";
+                forgotLink.setAttribute("onclick", "toggleForgotMode(false)");
             } else {
-                if (u === savedUser && p === savedPass) {
-                    globalUsername = u;
-                    alert("Login Berhasil! Selamat datang kembali.");
+                title.innerText = "USER LOGIN";
+                icon.innerText = "👤";
+                userIn.style.display = "block";
+                passIn.style.display = "block";
+                newPassIn.style.display = "none";
+                pinIn.placeholder = "PIN Pemulihan (4 Angka)";
+                btn.innerText = "Lanjut";
+                forgotLink.innerText = "Lupa Password?";
+                forgotLink.setAttribute("onclick", "toggleForgotMode(true)");
+            }
+        }
+
+        window.submitAuth = function() {
+            const pin = document.getElementById("pinIn").value.trim();
+            if (pin === "") { alert("PIN Rahasia WAJIB diisi, bro!"); return; }
+
+            const savedUser = localStorage.getItem("mpsamp_user");
+            const savedPass = localStorage.getItem("mpsamp_pass");
+            const savedPin = localStorage.getItem("mpsamp_pin");
+
+            if (window.isForgotMode) {
+                const newPass = document.getElementById("newPassIn").value.trim();
+                if (newPass === "") { alert("Password baru jangan dikosongin bro!"); return; }
+                if (pin === savedPin) {
+                    localStorage.setItem("mpsamp_pass", newPass);
+                    alert("Password sukses diganti!");
+                    window.toggleForgotMode(false); 
                 } else {
-                    alert("Gagal Login! Username atau Password salah, harus sama seperti login awal!");
-                    return; 
+                    alert("Gagal Reset! PIN Rahasia salah!");
                 }
-            }
+            } else {
+                const u = document.getElementById("userIn").value.trim();
+                const p = document.getElementById("passIn").value.trim();
+                if (u === "" || p === "") { alert("Username dan Password WAJIB diisi bro!"); return; }
 
-            toggleModal(false); 
-            document.getElementById("loginButton").innerText = "(sudah login)"; 
-            
-            playMusic();
-            loadMessages();
+                if (!savedUser) {
+                    localStorage.setItem("mpsamp_user", u);
+                    localStorage.setItem("mpsamp_pass", p);
+                    localStorage.setItem("mpsamp_pin", pin); 
+                    window.globalUsername = u;
+                    alert("Akun sukses dibuat!");
+                } else {
+                    if (u === savedUser && p === savedPass) {
+                        window.globalUsername = u;
+                        alert("Login Berhasil!");
+                    } else {
+                        alert("Gagal Login! Password / Username salah.");
+                        return; 
+                    }
+                }
+                window.toggleModal(false); 
+                document.getElementById("loginButton").innerText = `(${window.globalUsername})`; 
+                window.playMusic();
+            }
         }
 
-        // 3. Fungsi Ganti Slide
-        function openSlide(slideId) {
+        window.openSlide = function(slideId) {
             let sections = document.getElementsByClassName("content-section");
-            for (let i = 0; i < sections.length; i++) {
-                sections[i].classList.remove("active");
-            }
+            for (let i = 0; i < sections.length; i++) { sections[i].classList.remove("active"); }
             document.getElementById(slideId).classList.add("active");
-
+            
             const particles = document.getElementById('particles-container');
-            if (slideId === 'home') {
-                particles.style.display = 'block';
-            } else {
-                particles.style.display = 'none';
-            }
+            particles.style.display = (slideId === 'home') ? 'block' : 'none';
 
             let navItems = document.getElementsByClassName("nav-item");
-            for (let i = 0; i < navItems.length; i++) {
-                navItems[i].classList.remove("active-menu");
-            }
+            for (let i = 0; i < navItems.length; i++) { navItems[i].classList.remove("active-menu"); }
             event.currentTarget.classList.add("active-menu");
         }
 
-        // 4. Efek Bulan Sabit Merah
-        function createParticles() {
+        window.createParticles = function() {
             const container = document.getElementById('particles-container');
             container.innerHTML = ""; 
-            const particleCount = 20;
-
-            for (let i = 0; i < particleCount; i++) {
+            for (let i = 0; i < 20; i++) {
                 let particle = document.createElement('div');
                 particle.className = 'particle';
-                particle.innerHTML = '☽'; 
-                
+                particle.innerHTML = '🌙'; 
                 particle.style.left = Math.random() * 100 + 'vw';
                 particle.style.top = Math.random() * 100 + 'vh';
-                particle.style.fontSize = (Math.random() * 15 + 15) + 'px';
-                particle.style.animationDuration = (Math.random() * 4 + 4) + 's';
-                particle.style.animationDelay = Math.random() * 5 + 's';
-
                 container.appendChild(particle);
             }
         }
+        window.createParticles(); // Memanggil fungsi partikel saat web dimuat
 
-        // 5. Fungsi Kontrol Musik
-        function playMusic() {
-            audio.play().catch(e => console.log("Menunggu aksi user"));
-            musicBtn.innerHTML = "🎵";
-            musicBtn.style.boxShadow = "0 0 15px red";
+        // 3. Fungsi Musik
+        window.playMusic = function() {
+            document.getElementById("myAudio").play().catch(e => console.log("Menunggu aksi user"));
         }
 
-        function toggleMusic() {
+        window.toggleMusic = function() {
+            const audio = document.getElementById("myAudio");
             if (audio.paused) {
                 audio.play();
-                musicBtn.innerHTML = "🎵";
-                musicBtn.style.boxShadow = "0 0 15px red";
             } else {
                 audio.pause();
-                musicBtn.innerHTML = "🔇";
-                musicBtn.style.boxShadow = "0 0 5px #555";
             }
         }
 
-        window.addEventListener('click', () => {
-            if(audio.paused && musicBtn.innerHTML === "🎵") {
-                playMusic();
-            }
-        }, { once: true });
-
-        // 6. FITUR CHAT BERSAMA REAL-TIME
-        function loadMessages() {
-            const chatBox = document.getElementById("chatBox");
-            chatBox.innerHTML = '<div class="msg" style="color:red; border-color:red;">[System]: Selamat datang di Global Chat Room MPSAMP! Semua pesan tersinkronisasi antar tab.</div>';
-            
-            const msgs = JSON.parse(localStorage.getItem("global_chat_data") || "[]");
-            msgs.forEach(m => {
-                let newMsg = document.createElement("div");
-                newMsg.className = "msg";
-                newMsg.innerHTML = `<strong style="color:red;">${m.user}</strong>: ${m.text}`;
-                chatBox.appendChild(newMsg);
-            });
-            chatBox.scrollTop = chatBox.scrollHeight; 
-        }
-
-        function sendChat() {
-            if (globalUsername === "Guest") {
-                alert("Lu harus login dulu bro sebelum bisa ngirim pesan chat!");
-                return;
-            }
-            
+        // 4. LOGIKA FIREBASE CHAT
+        window.sendChat = function() {
             const input = document.getElementById("chatInput");
-            if (input.value.trim() !== "") {
-                const msgs = JSON.parse(localStorage.getItem("global_chat_data") || "[]");
-                const newMsgObj = { user: globalUsername, text: input.value };
-                msgs.push(newMsgObj);
-                
-                localStorage.setItem("global_chat_data", JSON.stringify(msgs));
-                
-                loadMessages(); 
-                input.value = ""; 
+            const pesan = input.value.trim();
+            
+            if (pesan === "") return; 
+            
+            push(chatRef, {
+                pengirim: window.globalUsername,
+                teks: pesan,
+                waktu: Date.now()
+            });
+            
+            input.value = ""; 
+        }
+
+        window.handleChatEnter = function(event) {
+            if (event.key === "Enter") {
+                window.sendChat();
             }
         }
 
-        function handleChatEnter(e) {
-            if (e.key === 'Enter') sendChat();
-        }
-
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'global_chat_data') {
-                loadMessages();
+        onChildAdded(chatRef, (snapshot) => {
+            const data = snapshot.val();
+            const chatBox = document.getElementById("chatBox");
+            const msgDiv = document.createElement("div");
+            
+            // Cek jika pesan ini dikirim oleh diri sendiri (agar warnanya beda)
+            const isMe = data.pengirim === window.globalUsername;
+            const namaColor = isMe ? "#ff4d4d" : "#00ffcc";
+            
+            msgDiv.className = "msg";
+            // Jika dikirim oleh diri sendiri, pesan berada di kanan
+            if (isMe) {
+                msgDiv.style.alignSelf = "flex-end";
+                msgDiv.style.backgroundColor = "#240000"; // Warna background agak kemerahan
             }
+
+            msgDiv.innerHTML = `<strong style="color: ${namaColor};">${data.pengirim}:</strong> <br> ${data.teks}`;
+            
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
         });
 
-        window.onload = function() {
-            createParticles();
-            loadMessages();
-            toggleModal(true);
-        };
     </script>
-
 </body>
 </html>
